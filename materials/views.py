@@ -1,10 +1,10 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, DestroyAPIView
-from materials.models import Course, Lesson
-from materials.serializers import CourseSerializer, LessonSerializer
+from materials.models import Course, Lesson, Subscription
+from materials.serializers import CourseSerializer, LessonSerializer, SubscriptionSerializer
 from users.permissions import IsModerator, IsOwner
-
+from django.shortcuts import get_object_or_404
 
 
 class CourseViewSet(ModelViewSet):
@@ -41,10 +41,10 @@ class LessonListApiView(ListAPIView):
     serializer_class = LessonSerializer
 
 
-class LessonRetrieveApiView(RetrieveAPIView):
+class LessonReviewAPIView(RetrieveAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
-    permission_classes = (IsAuthenticated, IsModerator | IsOwner)
+    permission_classes = (IsAuthenticated, IsModerator | IsOwner,)
 
 
 class LessonUpdateApiView(UpdateAPIView):
@@ -57,3 +57,21 @@ class LessonDestroyApiView(DestroyAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
     permission_classes = (IsAuthenticated, IsModerator | IsOwner)
+
+class SubscriptionCreateAPIView(CreateAPIView):
+    queryset = Subscription.objects.all()
+    serializer_class = SubscriptionSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        user = self.request.user
+        course_id = request.data.get('course')
+        course = get_object_or_404(Course, pk=course_id)
+        subs_item = Subscription.objects.filter(user=user, course=course)
+        if subs_item.exists():
+            subs_item.delete()
+            message = 'Подписка удалена'
+        else:
+            Subscription.objects.create(user=user, course=course, sign_up=True)
+            message = 'Подписка добавлена'
+        return Response({'message': message})
